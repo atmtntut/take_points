@@ -4,50 +4,76 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import requests
+import numpy as np
 import json
 
 class Demo(QWidget):
     width = 600
     height = 600
+    row, col = 75, 25
+    step = 10
     def __init__(self):
         super().__init__()
         self.initUI()
+        self.mask = np.zeros((self.row, self.col))
 
     def initUI(self):
-        self.resize(self.width, self.height)
-        self.move(300, 300)
+        self.bd_w, self.bd_h = self.step*self.col, self.step*self.row
+        self.bd = QPixmap(QSize(self.bd_w, self.bd_h))
+        self.bd.fill(Qt.white)
+
+        self.qp = QPainter()
+
+        self.resize(self.bd_w + 200, self.bd_h)
+        self.move(200, 200)
         self.setWindowTitle('paint')
         self.show()
 
-    def paintEvent(self, event):
-        qp = QPainter()
-        qp.begin(self)
-        self.drawRectangles(qp)
-        self.drawGrid(qp, 50, 25)
-        qp.end()
+    def printMask(self):
+        for r in range(0, self.mask.shape[0]):
+            print(f'{r}:', end=' ')
+            for c in range(0, self.mask.shape[1]):
+                print(f'{self.mask[r][c]}', end=' ')
+            print('')
 
-    def drawGrid(self, qp, row, col):
-        step = max(self.width, self.height) // max(row, col)
-        pen = QPen(Qt.black, 2, Qt.SolidLine)
-        qp.setPen(pen)
-        for i in range(0, row+1):
-            qp.drawLine(0, i*step, col*step, i*step)
-        for j in range(0, col+1):
-            qp.drawLine(j*step, 0, j*step, row*step)
+    def paintEvent(self, e):
+        self.qp.begin(self)
+        self.qp.drawPixmap(0, 0, self.bd)
+        self.drawGrid()
+        self.qp.end()
 
-    def drawRectangles(self, qp):
-        #col = QColor(0, 0, 0)
-        #col.setNamedColor('#d4d4d4')
-        #qp.setPen(col)
+    def mousePressEvent (self, e):
+        self.isDraw = True
+        self.fillRect(e.x(), e.y())
 
-        qp.setBrush(QColor(200, 0, 0))
-        qp.drawRect(10, 15, 90, 60)
+    def mouseReleaseEvent (self,e):
+        self.isDraw = False
+        self.printMask()
 
-        qp.setBrush(QColor(255, 80, 0, 160))
-        qp.drawRect(130, 15, 90, 60)
+    def mouseMoveEvent (self,e):
+        if self.isDraw:
+            self.fillRect(e.x(), e.y())
 
-        qp.setBrush(QColor(25, 0, 90, 200))
-        qp.drawRect(250, 15, 90, 60)
+    def drawGrid(self):
+        pen = QPen(Qt.blue, 1, Qt.SolidLine)
+        self.qp.setPen(pen)
+        for i in range(0, self.row+1):
+            self.qp.drawLine(0, i*self.step, self.col*self.step, i*self.step)
+        for j in range(0, self.col+1):
+            self.qp.drawLine(j*self.step, 0, j*self.step, self.row*self.step)
+
+    def fillRect(self, x, y):
+        c = x // self.step
+        r = y // self.step
+        if c >= self.col or r >= self.row:
+            return
+        if self.mask[r][c] == 0:
+            self.mask[r][c] = 1
+            self.qp.begin(self.bd)
+            self.qp.setBrush(QColor(128, 128, 128))
+            self.qp.drawRect(c * self.step, r * self.step, self.step, self.step)
+            self.qp.end()
+            self.update()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
